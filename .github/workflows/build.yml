@@ -8,25 +8,8 @@ on:
 
 jobs:
   build:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: windows-latest
-            artifact: BlockheadsPC-Windows
-            exe_name: BlockheadsPC.exe
-            dist_path: dist/BlockheadsPC
-          - os: ubuntu-22.04
-            artifact: BlockheadsPC-Linux
-            exe_name: BlockheadsPC
-            dist_path: dist/BlockheadsPC
-          - os: macos-13
-            artifact: BlockheadsPC-macOS
-            exe_name: BlockheadsPC
-            dist_path: dist/BlockheadsPC
-
-    runs-on: ${{ matrix.os }}
-    name: Build on ${{ matrix.os }}
+    runs-on: windows-latest
+    name: Build Windows .exe
 
     steps:
       # ── Checkout ────────────────────────────────────────────────────────
@@ -37,16 +20,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-
-      # ── System deps (Linux only – SDL needs these) ───────────────────────
-      - name: Install Linux system dependencies
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y \
-            libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev \
-            libportmidi-dev libjpeg-dev libpng-dev \
-            libasound2-dev libpulse-dev
 
       # ── Python packages ──────────────────────────────────────────────────
       - name: Install Python dependencies
@@ -60,23 +33,23 @@ jobs:
 
       # ── Verify the binary was created ────────────────────────────────────
       - name: Verify build output
-        shell: bash
+        shell: pwsh
         run: |
-          ls -lh "${{ matrix.dist_path }}/"
+          Get-ChildItem dist\BlockheadsPC\
           echo "Build OK"
 
       # ── Add README inside the bundle ─────────────────────────────────────
       - name: Write README into bundle
-        shell: bash
+        shell: pwsh
         run: |
-          cat > "${{ matrix.dist_path }}/LISEZ-MOI.txt" <<'EOF'
+          $content = @"
           ╔══════════════════════════════════════════════════════╗
           ║         The Blockheads – PC Edition                  ║
           ╚══════════════════════════════════════════════════════╝
 
           LANCEMENT
           ---------
-          Double-cliquez sur BlockheadsPC  (ou BlockheadsPC.exe sur Windows).
+          Double-cliquez sur BlockheadsPC.exe
 
           Au premier lancement le jeu télécharge automatiquement
           les ressources graphiques et sonores (~96 Mo).
@@ -84,47 +57,40 @@ jobs:
 
           CONTRÔLES
           ---------
-          ← → / A D      Se déplacer
-          Espace / W / ↑  Sauter
-          Clic gauche     Miner (maintenir)
-          Clic droit      Poser un bloc
-          1–9 / Molette   Changer de bloc
-          E               Inventaire créatif
-          Échap           Pause
-          F11             Plein écran
+          Flèches / A D    Se déplacer
+          Espace / W       Sauter
+          Clic gauche      Miner (maintenir)
+          Clic droit       Poser un bloc
+          1-9 / Molette    Changer de bloc
+          E                Inventaire créatif
+          Echap            Pause
+          F11              Plein écran
 
           NE PAS SUPPRIMER
           ----------------
           Le dossier apk_extracted/ (créé au 1er lancement) contient
           les ressources du jeu. Le supprimer force un nouveau
           téléchargement.
-          EOF
+          "@
+          $content | Out-File -FilePath "dist\BlockheadsPC\LISEZ-MOI.txt" -Encoding utf8
 
       # ── Zip the bundle ───────────────────────────────────────────────────
-      - name: Zip bundle (Linux / macOS)
-        if: runner.os != 'Windows'
-        run: |
-          cd dist
-          zip -r "${{ matrix.artifact }}.zip" BlockheadsPC/
-          ls -lh "${{ matrix.artifact }}.zip"
-
-      - name: Zip bundle (Windows)
-        if: runner.os == 'Windows'
+      - name: Zip bundle
         shell: pwsh
         run: |
           Compress-Archive -Path "dist\BlockheadsPC\*" `
-                           -DestinationPath "dist\${{ matrix.artifact }}.zip"
-          Get-Item "dist\${{ matrix.artifact }}.zip" | Select-Object Length, Name
+                           -DestinationPath "dist\BlockheadsPC-Windows.zip"
+          Get-Item "dist\BlockheadsPC-Windows.zip" | Select-Object Length, Name
 
       # ── Upload artifact ──────────────────────────────────────────────────
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.artifact }}
-          path: dist/${{ matrix.artifact }}.zip
+          name: BlockheadsPC-Windows
+          path: dist/BlockheadsPC-Windows.zip
           retention-days: 30
 
-  # ── Create GitHub Release when a tag is pushed ─────────────────────────────
+  # ── Create GitHub Release when a tag v* is pushed ─────────────────────────
   release:
     name: Create Release
     needs: build
@@ -132,13 +98,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Download all artifacts
+      - name: Download artifact
         uses: actions/download-artifact@v4
         with:
           path: artifacts/
-
-      - name: List artifacts
-        run: find artifacts/ -type f
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -149,19 +112,11 @@ jobs:
 
             Recréation PC du jeu Android/iOS original, avec les vraies textures et sons.
 
-            ### Téléchargement
-
-            | Plateforme | Fichier |
-            |------------|---------|
-            | 🪟 Windows  | `BlockheadsPC-Windows.zip` |
-            | 🐧 Linux    | `BlockheadsPC-Linux.zip` |
-            | 🍎 macOS    | `BlockheadsPC-macOS.zip` |
-
             ### Installation
-            1. Téléchargez le ZIP correspondant à votre OS
+            1. Téléchargez **BlockheadsPC-Windows.zip**
             2. Extrayez le dossier
-            3. Lancez `BlockheadsPC` (ou `BlockheadsPC.exe`)
-            4. La première exécution télécharge les ressources (~96 Mo)
+            3. Double-cliquez sur **BlockheadsPC.exe**
+            4. La première exécution télécharge les ressources (~96 Mo) automatiquement
 
             ### Contrôles
             `←→` déplacement · `Espace` saut · `Clic gauche` miner · `Clic droit` poser · `E` inventaire
