@@ -3,7 +3,7 @@ name: Build Executables
 on:
   push:
     branches: [main, master, "claude/**"]
-    tags:     ["v*"]
+    tags: ["v*"]
   workflow_dispatch:
 
 env:
@@ -29,52 +29,52 @@ jobs:
           pip install pygame numpy pyinstaller
 
       - name: Build with PyInstaller
-        run: |
-          pyinstaller blockheads_pc.spec --clean --noconfirm
         env:
           PYTHONIOENCODING: utf-8
+        run: pyinstaller blockheads_pc.spec --clean --noconfirm
 
       - name: Verify build output
         shell: pwsh
         run: |
           if (-Not (Test-Path "dist\BlockheadsPC\BlockheadsPC.exe")) {
-            Write-Error "BlockheadsPC.exe not found – build failed"
+            Write-Error "BlockheadsPC.exe not found - build failed"
             exit 1
           }
-          Write-Host "Build OK – files:"
+          Write-Host "Build OK"
           Get-ChildItem dist\BlockheadsPC\ | Select-Object Name, Length
 
       - name: Write README into bundle
         shell: pwsh
         run: |
-          @"
-The Blockheads – PC Edition
-============================
-
-LANCEMENT
----------
-Double-cliquez sur BlockheadsPC.exe
-
-Au premier lancement le jeu telecharge automatiquement
-les ressources graphiques et sonores (~96 Mo).
-Une connexion Internet est necessaire pour cette etape.
-
-CONTROLES
----------
-Fleches / A D    Se deplacer
-Espace / W       Sauter
-Clic gauche      Miner (maintenir)
-Clic droit       Poser un bloc
-1-9 / Molette    Changer de bloc
-E                Inventaire creatif
-Echap            Pause
-F11              Plein ecran
-
-NE PAS SUPPRIMER
-----------------
-Le dossier apk_extracted/ (cree au 1er lancement) contient
-les ressources du jeu. Le supprimer force un nouveau telechargement.
-"@ | Out-File -FilePath "dist\BlockheadsPC\LISEZ-MOI.txt" -Encoding utf8
+          $lines = @(
+            "The Blockheads - PC Edition",
+            "===========================",
+            "",
+            "LANCEMENT",
+            "---------",
+            "Double-cliquez sur BlockheadsPC.exe",
+            "",
+            "Au premier lancement le jeu telecharge automatiquement",
+            "les ressources graphiques et sonores (~96 Mo).",
+            "Une connexion Internet est necessaire pour cette etape.",
+            "",
+            "CONTROLES",
+            "---------",
+            "Fleches / A D    Se deplacer",
+            "Espace / W       Sauter",
+            "Clic gauche      Miner (maintenir)",
+            "Clic droit       Poser un bloc",
+            "1-9 / Molette    Changer de bloc",
+            "E                Inventaire creatif",
+            "Echap            Pause",
+            "F11              Plein ecran",
+            "",
+            "NE PAS SUPPRIMER",
+            "----------------",
+            "Le dossier apk_extracted/ (cree au 1er lancement) contient",
+            "les ressources du jeu. Le supprimer force un nouveau telechargement."
+          )
+          $lines | Set-Content -Path "dist\BlockheadsPC\LISEZ-MOI.txt" -Encoding utf8
 
       - name: Zip bundle
         shell: pwsh
@@ -82,7 +82,7 @@ les ressources du jeu. Le supprimer force un nouveau telechargement.
           Compress-Archive -Path "dist\BlockheadsPC\*" `
                            -DestinationPath "dist\BlockheadsPC-Windows.zip" -Force
           $size = (Get-Item "dist\BlockheadsPC-Windows.zip").Length / 1MB
-          Write-Host ("ZIP created: {0:N1} MB" -f $size)
+          Write-Host ("ZIP: {0:N1} MB" -f $size)
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -91,7 +91,6 @@ les ressources du jeu. Le supprimer force un nouveau telechargement.
           path: dist/BlockheadsPC-Windows.zip
           retention-days: 30
 
-  # Create a GitHub Release when a v* tag is pushed
   release:
     name: Create Release
     needs: build
@@ -118,7 +117,7 @@ les ressources du jeu. Le supprimer force un nouveau telechargement.
             4. Les ressources (~96 Mo) se téléchargent automatiquement au 1er lancement
 
             ### Contrôles
-            `←→` déplacement · `Espace` saut · `Clic gauche` miner · `Clic droit` poser · `E` inventaire
+            Flèches/AD déplacement · Espace saut · Clic gauche miner · Clic droit poser · E inventaire
           files: artifacts/**/*.zip
           draft: false
           prerelease: false
