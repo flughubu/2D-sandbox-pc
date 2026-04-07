@@ -11,6 +11,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import pygame
 
+from downloader import assets_present, run_setup_with_splash
 from game import Game, DEFAULT_W, DEFAULT_H
 
 
@@ -18,6 +19,10 @@ def main() -> None:
     pygame.init()
     pygame.mixer.pre_init(44100, -16, 2, 512)
     pygame.mixer.init()
+
+    # First-run: download game assets if missing
+    if not assets_present():
+        run_setup_with_splash()
 
     # Window
     flags  = pygame.RESIZABLE

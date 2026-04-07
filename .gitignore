@@ -2,11 +2,20 @@ __pycache__/
 *.pyc
 *.pyo
 .pytest_cache/
+
+# Game assets (downloaded at first run)
 apk_extracted/
 app.apk
+_blockheads_tmp.apk
+
+# Binary assets (not tracked)
 *.png
 *.jpg
 *.wav
 *.mp4
 *.otf
 *.ttf
+
+# PyInstaller build outputs
+build/
+dist/

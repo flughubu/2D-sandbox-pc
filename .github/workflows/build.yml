@@ -1,0 +1,170 @@
+name: Build Executables
+
+on:
+  push:
+    branches: [main, master, "claude/**"]
+    tags:     ["v*"]
+  workflow_dispatch:   # manual trigger from GitHub UI
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            artifact: BlockheadsPC-Windows
+            exe_name: BlockheadsPC.exe
+            dist_path: dist/BlockheadsPC
+          - os: ubuntu-22.04
+            artifact: BlockheadsPC-Linux
+            exe_name: BlockheadsPC
+            dist_path: dist/BlockheadsPC
+          - os: macos-13
+            artifact: BlockheadsPC-macOS
+            exe_name: BlockheadsPC
+            dist_path: dist/BlockheadsPC
+
+    runs-on: ${{ matrix.os }}
+    name: Build on ${{ matrix.os }}
+
+    steps:
+      # ── Checkout ────────────────────────────────────────────────────────
+      - uses: actions/checkout@v4
+
+      # ── Python ──────────────────────────────────────────────────────────
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # ── System deps (Linux only – SDL needs these) ───────────────────────
+      - name: Install Linux system dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y \
+            libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev \
+            libportmidi-dev libjpeg-dev libpng-dev \
+            libasound2-dev libpulse-dev
+
+      # ── Python packages ──────────────────────────────────────────────────
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pygame numpy pyinstaller
+
+      # ── Build ────────────────────────────────────────────────────────────
+      - name: Build with PyInstaller
+        run: pyinstaller blockheads_pc.spec --clean --noconfirm
+
+      # ── Verify the binary was created ────────────────────────────────────
+      - name: Verify build output
+        shell: bash
+        run: |
+          ls -lh "${{ matrix.dist_path }}/"
+          echo "Build OK"
+
+      # ── Add README inside the bundle ─────────────────────────────────────
+      - name: Write README into bundle
+        shell: bash
+        run: |
+          cat > "${{ matrix.dist_path }}/LISEZ-MOI.txt" <<'EOF'
+          ╔══════════════════════════════════════════════════════╗
+          ║         The Blockheads – PC Edition                  ║
+          ╚══════════════════════════════════════════════════════╝
+
+          LANCEMENT
+          ---------
+          Double-cliquez sur BlockheadsPC  (ou BlockheadsPC.exe sur Windows).
+
+          Au premier lancement le jeu télécharge automatiquement
+          les ressources graphiques et sonores (~96 Mo).
+          Une connexion Internet est nécessaire pour cette étape.
+
+          CONTRÔLES
+          ---------
+          ← → / A D      Se déplacer
+          Espace / W / ↑  Sauter
+          Clic gauche     Miner (maintenir)
+          Clic droit      Poser un bloc
+          1–9 / Molette   Changer de bloc
+          E               Inventaire créatif
+          Échap           Pause
+          F11             Plein écran
+
+          NE PAS SUPPRIMER
+          ----------------
+          Le dossier apk_extracted/ (créé au 1er lancement) contient
+          les ressources du jeu. Le supprimer force un nouveau
+          téléchargement.
+          EOF
+
+      # ── Zip the bundle ───────────────────────────────────────────────────
+      - name: Zip bundle (Linux / macOS)
+        if: runner.os != 'Windows'
+        run: |
+          cd dist
+          zip -r "${{ matrix.artifact }}.zip" BlockheadsPC/
+          ls -lh "${{ matrix.artifact }}.zip"
+
+      - name: Zip bundle (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "dist\BlockheadsPC\*" `
+                           -DestinationPath "dist\${{ matrix.artifact }}.zip"
+          Get-Item "dist\${{ matrix.artifact }}.zip" | Select-Object Length, Name
+
+      # ── Upload artifact ──────────────────────────────────────────────────
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist/${{ matrix.artifact }}.zip
+          retention-days: 30
+
+  # ── Create GitHub Release when a tag is pushed ─────────────────────────────
+  release:
+    name: Create Release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: List artifacts
+        run: find artifacts/ -type f
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "The Blockheads PC Edition ${{ github.ref_name }}"
+          body: |
+            ## The Blockheads – PC Edition ${{ github.ref_name }}
+
+            Recréation PC du jeu Android/iOS original, avec les vraies textures et sons.
+
+            ### Téléchargement
+
+            | Plateforme | Fichier |
+            |------------|---------|
+            | 🪟 Windows  | `BlockheadsPC-Windows.zip` |
+            | 🐧 Linux    | `BlockheadsPC-Linux.zip` |
+            | 🍎 macOS    | `BlockheadsPC-macOS.zip` |
+
+            ### Installation
+            1. Téléchargez le ZIP correspondant à votre OS
+            2. Extrayez le dossier
+            3. Lancez `BlockheadsPC` (ou `BlockheadsPC.exe`)
+            4. La première exécution télécharge les ressources (~96 Mo)
+
+            ### Contrôles
+            `←→` déplacement · `Espace` saut · `Clic gauche` miner · `Clic droit` poser · `E` inventaire
+          files: artifacts/**/*.zip
+          draft: false
+          prerelease: false
