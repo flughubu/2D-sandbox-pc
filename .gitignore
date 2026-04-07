@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+apk_extracted/
+app.apk
+*.png
+*.jpg
+*.wav
+*.mp4
+*.otf
+*.ttf
