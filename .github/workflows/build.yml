@@ -47,34 +47,35 @@ jobs:
       - name: Write README into bundle
         shell: pwsh
         run: |
-          @"
-The Blockheads – PC Edition
-============================
-
-LANCEMENT
----------
-Double-cliquez sur BlockheadsPC.exe
-
-Au premier lancement le jeu telecharge automatiquement
-les ressources graphiques et sonores (~96 Mo).
-Une connexion Internet est necessaire pour cette etape.
-
-CONTROLES
----------
-Fleches / A D    Se deplacer
-Espace / W       Sauter
-Clic gauche      Miner (maintenir)
-Clic droit       Poser un bloc
-1-9 / Molette    Changer de bloc
-E                Inventaire creatif
-Echap            Pause
-F11              Plein ecran
-
-NE PAS SUPPRIMER
-----------------
-Le dossier apk_extracted/ (cree au 1er lancement) contient
-les ressources du jeu. Le supprimer force un nouveau telechargement.
-"@ | Out-File -FilePath "dist\BlockheadsPC\LISEZ-MOI.txt" -Encoding utf8
+          $lines = @(
+            "The Blockheads - PC Edition",
+            "============================",
+            "",
+            "LANCEMENT",
+            "---------",
+            "Double-cliquez sur BlockheadsPC.exe",
+            "",
+            "Au premier lancement le jeu telecharge automatiquement",
+            "les ressources graphiques et sonores (~96 Mo).",
+            "Une connexion Internet est necessaire pour cette etape.",
+            "",
+            "CONTROLES",
+            "---------",
+            "Fleches / A D    Se deplacer",
+            "Espace / W       Sauter",
+            "Clic gauche      Miner (maintenir)",
+            "Clic droit       Poser un bloc",
+            "1-9 / Molette    Changer de bloc",
+            "E                Inventaire / Artisanat",
+            "Echap            Pause",
+            "+/-              Zoom",
+            "",
+            "NE PAS SUPPRIMER",
+            "----------------",
+            "Le dossier apk_extracted/ (cree au 1er lancement) contient",
+            "les ressources du jeu. Le supprimer force un nouveau telechargement."
+          )
+          $lines | Set-Content -Path "dist\BlockheadsPC\LISEZ-MOI.txt" -Encoding utf8
 
       - name: Zip bundle
         shell: pwsh
